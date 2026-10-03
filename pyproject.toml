@@ -1,0 +1,27 @@
+[project]
+name = "research-workspace"
+version = "0.1.0"
+description = "Research workspace for experiments"
+requires-python = ">=3.10"
+dependencies = [
+    "accelerate>=1.2",
+    "datasets>=5.0.1",
+    "matplotlib>=3.9",
+    "pandas>=2.2",
+    "pypdf>=6.19.0",
+    "requests>=2.34.2",
+    "scikit-learn>=1.5",
+    "scipy>=1.14",
+    "seaborn>=0.13",
+    "statsmodels>=0.14",
+    "torch==2.6.0",
+    "tqdm>=4.67",
+    "transformers>=4.48,<5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false

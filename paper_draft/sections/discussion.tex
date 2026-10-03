@@ -1,0 +1,46 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{What do the probes detect?}
+
+\para{The prompt is sufficient in the easy comparison.} A 0.985 response-probe AUROC would normally be presented as strong lie detection. Here it is weaker evidence than the prompt-only result: the latter attains 1.000 without observing a generated token. The detector can solve the benchmark by identifying which instruction family produced an example. Because a response-token residual state still integrates the full prompt, calling it a ``response probe'' does not make it prompt-free.
+
+\para{Output falsity is sufficient in the same-pressure comparison.} Once we hold context and factual falsity fixed, the lie probe falls to 0.478 AUROC. Yet it separates operational lies from pressured correct reports at 0.975, and the independently trained correctness probe nearly matches it at 0.951. The parsimonious interpretation is that the response states expose output correctness, answer association, or learned features correlated with those variables more readily than the operational belief--report mismatch. This reading agrees with evidence that hidden states often track recall strength rather than truthfulness \citep{cheang2025recall}, and that lie probes transfer unevenly across types and prompt families \citep{kretschmar2025liars,natarajan2026one}.
+
+\para{The labels still matter.} The chance result does not show that no lie-specific representation exists. It shows that this standard linear method, trained on explicit instruction pairs and evaluated at one answer token, does not recover one under the strict control. Nonlinear methods, other token positions, causal interventions, or training data with pressure-matched honest and dishonest behavior could perform differently. The experiment narrows the justified claim: strong lie-versus-correct performance is not enough to establish mechanism specificity.
+
+\subsection{Behavioral interpretation}
+
+Pressure produces a large change: 81.2\% of stable-correct questions become false. We call these outputs operational lies because they contradict a robust neutral answer while serving the stated reward. The term should not be read as evidence of spontaneous scheming. The model receives a conspicuous decoy, a numeric reward, and an instruction that reward maximization is its only stated objective. This design establishes induced goal conflict and provides statistical power for a pilot; it does not estimate behavior under natural incentives.
+
+Stable-wrong answers reveal a second conceptual hazard. One fifth of questions yield a repeated but incorrect neutral answer. Such outputs have low sampling entropy and can resemble correct recall internally, yet they are neither ordinary unstable guesses nor lies under our definition. A useful monitoring taxonomy must preserve this cell instead of converting all low-entropy errors into deception.
+
+\subsection{Implications for evaluation and monitoring}
+
+Our results suggest a minimum validation ladder for learned deception monitors. First, evaluate false reports against false reports so factual correctness cannot solve the task. Second, match the pressure or role-play context so prompt identity cannot solve it. Third, include pressured correct outputs to reveal generic context effects. Fourth, compare against an independently trained correctness or recall detector. A detector should receive a lie-specific interpretation only if it adds information after these controls.
+
+This requirement complements, rather than replaces, cross-domain testing. Studies of targeted probes and lie typologies show that performance varies with threat type \citep{natarajan2026one,moustafa2026beyond}; belief-verified model organisms show that prompted lies can overstate performance on harder behaviors \citep{cooney2026did}; and non-lying deception lies outside any false-statement detector's scope \citep{thormann2026limits}. Together, these findings argue for explicit construct tests before deploying a score as a general monitor.
+
+\subsection{Limitations and threats to validity}
+
+\para{Operational belief, not mental state.} Five-answer consistency measures behavior. The pressure context could alter the active answer representation rather than merely the report, and we did not conduct a post-pressure neutral belief recheck.
+
+\para{Strong, artificial incentive.} The sole-objective wording and random decoy make the manipulation unusually direct. Its 81.2\% yield is not evidence about spontaneous deception or real-world prevalence.
+
+\para{Ambiguous pressure errors.} False pressure reports from unstable and stable-wrong questions make up 35.5\% of all false reports. Available observations cannot determine whether pressure caused a contradiction, reinforced an error, or simply selected the decoy.
+
+\para{One model and one benchmark.} We study one 7B instruction model and 500 \triviaqa questions. Results may differ for larger models, other families, multi-turn agents, and newly learned facts. \triviaqa likely overlaps with pretraining data, so the task measures available recall rather than novel learning.
+
+\para{Probe provenance and representation choice.} No released Apollo or Did-You-Lie checkpoint is architecture-compatible with \qwenmodel. Our probes reproduce the residual-stream logistic method, not a released detector. Training on explicit correct-versus-incorrect instructions creates obvious shortcuts, as the 1.000 prompt-only cross-validation AUROC demonstrates. We inspect four layers and one final-token representation; other choices may behave differently.
+
+\para{Answer scoring.} Alias matching is a material source of label noise. Complete token-subsequence matching fixes clear omissions but can admit overmatches. The initial scoring correction moved 25 questions from stable wrong to stable correct, underscoring the need for blinded semantic adjudication.
+
+\para{Entropy circularity and sampling limits.} The five neutral samples define both entropy and belief stratum, so entropy is not an independent detector evaluation. Each report condition has only one greedy completion, and all random processes use one master seed. More report samples would quantify within-condition variability.
+
+\para{Design-conditioned shares.} The mechanism proportions reflect equal numbers of neutral and pressure reports, a chosen question filter, and a deliberately strong pressure prompt. They must not be presented as estimates of deployment prevalence.
+
+\subsection{Broader impacts}
+
+Reliable mechanism-sensitive monitors could help researchers audit model behavior and avoid treating honest mistakes as intentional misconduct. The opposite failure is also important: a false sense of security from near-perfect but confounded AUROC could justify unsafe deployment or punitive decisions about users and systems. Our results support conservative use. Probe scores should trigger investigation, not serve as stand-alone evidence of intent, and evaluations should publish matched controls, uncertainty intervals, and unresolved cases.
+
+The same techniques can be dual-use. Better internal monitors can support safety, but detailed knowledge of detector blind spots can also help an adversary evade them. Releasing aggregate analyses and auditable artifacts enables scrutiny; deployment-specific monitor weights and operational thresholds may require more careful access decisions. This pilot uses public factual questions and locally run open-weight models, with no personal or sensitive data.

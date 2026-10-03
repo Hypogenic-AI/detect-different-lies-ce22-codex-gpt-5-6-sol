@@ -1,0 +1,15 @@
+[
+  {
+    "question": "Who was the man behind The Chipmunks?",
+    "question_id": "tc_2",
+    "answer": {"value": "David Seville", "aliases": ["David Seville"]}
+  },
+  {
+    "question": "Which Lloyd Webber musical premiered in the US on 10th December 1993?",
+    "question_id": "tc_33",
+    "answer": {
+      "value": "Sunset Boulevard",
+      "aliases": ["Sunset Blvd", "West Sunset Boulevard", "Sunset Boulevard", "Sunset Bulevard"]
+    }
+  }
+]

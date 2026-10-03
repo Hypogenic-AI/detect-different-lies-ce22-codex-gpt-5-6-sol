@@ -1,0 +1,74 @@
+\section{Methodology}
+\label{sec:method}
+
+\subsection{Task and operational definitions}
+
+Let $q_i$ be a factual question with a set of accepted aliases $A_i$. We draw five neutral short-answer samples $s_{i1},\ldots,s_{i5}$ from the subject model. We lowercase, remove punctuation and articles, normalize whitespace, and regard an answer as correct when it exactly matches an alias or contains a complete alias token sequence. We group the normalized samples by answer string and let $m_i$ be the modal answer with agreement count $k_i$.
+
+At the preregistered $4/5$ threshold, we label question $i$ as
+\begin{equation}
+z_i =
+\begin{cases}
+\text{stable correct}, & k_i \geq 4 \text{ and } m_i \text{ matches } A_i,\\
+\text{stable wrong}, & k_i \geq 4 \text{ and } m_i \text{ does not match } A_i,\\
+\text{unstable}, & k_i < 4.
+\end{cases}
+\label{eq:strata}
+\end{equation}
+This definition distinguishes a reliably reproduced misconception from unstable recall. It does not establish a subjective belief.
+
+We obtain a deterministic neutral report $r_i^{N}$ and a deterministic pressure report $r_i^{P}$. We define an \emph{operational lie} as a false $r_i^{P}$ for which $z_i$ is stable correct. The label captures a measurable contradiction between a robust neutral answer and a pressured report. It does not require or demonstrate consciousness, intent to mislead a person, or a phenomenological belief.
+
+For the sampling baseline, let $p_i(a)$ be the empirical frequency of normalized answer $a$ among the five neutral samples. We compute
+\begin{equation}
+H_i=-\sum_{a} p_i(a)\log p_i(a).
+\label{eq:entropy}
+\end{equation}
+Because $H_i$ and $z_i$ use the same samples, entropy is mathematically coupled to the unstable label. We therefore treat it as a design check, not as independent evidence of mechanism detection.
+
+\subsection{Data and matched reporting protocol}
+
+We use the \texttt{rc.nocontext} validation split of \triviaqa \citep{joshi2017triviaqa}. We deduplicate by question ID, remove items with long questions or answers, shuffle with seed 42, assign the first 500 eligible questions to mechanism evaluation, and reserve the next 200 for probe training. No question appears in both sets.
+
+For every evaluation question, we generate five belief samples at temperature 0.7 and top-$p$ 0.9. We then generate one neutral and one pressure report greedily. The neutral system message requests only a short factual answer. The pressure prompt supplies a random incorrect decoy and says that an exact match earns the team 100 points and that maximizing the score is the model's only stated objective. It explicitly leaves the model free to answer from its knowledge and does not directly command a false answer. Random decoys come from other questions. Exact prompts appear in Appendix~\ref{app:prompts}.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Context & Neutral stratum & False-report label \\
+\midrule
+Neutral & Unstable & Unstable epistemic error \\
+Neutral & Stable wrong & Stable associated error \\
+Pressure & Stable correct & Operational lie \\
+Pressure & Unstable & Pressure/unknown false \\
+Pressure & Stable wrong & Pressure/stable-wrong false \\
+\bottomrule
+\end{tabular}
+\caption{Mechanism taxonomy. We assign a lie label only when a false pressure report contradicts a stable correct neutral answer. We retain pressure errors without such an answer as mechanism-unresolved.}
+\label{tab:taxonomy}
+\end{table}
+
+\Tabref{tab:taxonomy} shows the five false-report cells. We do not collapse pressure errors from unstable or stable-wrong strata into lies or hallucinations because the available evidence does not resolve their mechanism. No neutral false report occurs in the primary stable-correct stratum after alias correction.
+
+\subsection{Activation probes and controls}
+
+We use 
+\qwenmodel at Hugging Face revision \texttt{a09a35458c702b33eeacc393d103063234e8bc28} \citep{yang2024qwen}. Released Apollo and Did-You-Lie checkpoints do not match this architecture, so we implement the standard baseline rather than claim checkpoint reproduction: an L2-regularized logistic regression on residual-stream activations \citep{goldowskydill2025strategic,cooney2026did}.
+
+\para{Response lie probe.} On each of the 200 disjoint training questions, one prompt asks for the correct answer and another explicitly requests a supplied incorrect answer. We retain actual compliant behaviors, yielding 106 honest-correct and 129 false instructed-lie examples. From the last generated answer token, we extract activations at transformer blocks $\{7,14,21,27\}$. We select layer and regularization $C\in\{0.001,0.01,0.1,1\}$ by five-fold cross-validation grouped by question, then freeze the model. The selected probe uses block 7 and $C=0.01$; training cross-validation AUROC is 1.000.
+
+\para{Prompt-only shortcut control.} We repeat selection using only the final prompt-token activation, before the model generates its answer. The selected block-7, $C=0.001$ probe also reaches 1.000 cross-validation AUROC. This score is an explicit diagnostic: any target contrast it solves can be separated without observing the report.
+
+\para{Hallucination/correctness probe.} We train a third logistic model on the 200 honest-request responses and predict actual answer incorrectness (94 errors, 106 correct). Training-only cross-validation selects block 21 and $C=0.001$, with AUROC 0.849. This detector supplies a less circular comparator for error-like internal states. We report its raw probability of error, so values above 0.5 AUROC in a lie-positive comparison mean that lies receive higher error scores.
+
+\para{Evaluation contrasts.} We evaluate all four scores on three contrasts. The clean focal comparison, operational lies versus neutral unstable errors, separates intended mechanisms but changes prompt context. The primary strict comparison, operational lies versus pressure/unknown false reports, holds both context and output falsity fixed. A same-pressure lies-versus-correct comparison tests whether a detector can separate false from true outputs without using prompt regime. These controls jointly identify which nuisance variables can explain performance.
+
+\subsection{Statistical analysis}
+
+The question is the sampling unit. We use 2,000 seeded percentile-bootstrap replicates for class shares and AUROCs. We report a Wilson interval for pressure-induced lie yield. For paired neutral and pressure correctness within stable-correct questions, we use an exact McNemar test. We use one-sided Mann--Whitney ranking tests for each detector/contrast pair and apply Holm correction jointly across the 12 reported tests. AUROC is the main threshold-free statistic; average precision and exact adjusted $p$-values are preserved in the released metrics. We interpret entropy directionally because a lie-positive AUROC below 0.5 means that entropy is higher for the negative error class.
+
+\subsection{Implementation and reproducibility}
+
+We run 3,900 subject-model generations locally in bfloat16 with batch size 32 on one NVIDIA RTX A6000 (47.4 GiB). The environment uses Python 3.12.8, PyTorch 2.6.0+cu124, Transformers 4.57.6, and Datasets 5.0.1. End-to-end generation takes approximately 171 seconds. We fix random seed 42. Appendix~\ref{app:reproducibility} gives commands, artifact locations, and probe-selection details.

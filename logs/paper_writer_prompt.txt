@@ -1,0 +1,713 @@
+You are an academic paper writer. Generate a complete NEURIPS style paper
+based on the experiment results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .codex/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW EXAMPLES: Browse paper_examples/ for formatting and language patterns:
+   - Look at sections/1.introduction.tex for language style
+   - Look at tables/*.tex for table formatting
+   - Look at commands/*.tex for macro usage
+4. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex) are pre-copied to paper_draft/commands/
+
+CRITICAL: Reference example papers for FORMATTING and LANGUAGE STYLE only.
+Do NOT copy content, phrasing, or narrative structure from the example papers.
+The examples are in a different research domain - focus only on presentation style.
+
+════════════════════════════════════════════════════════════════════════════════
+                            EXPERIMENT REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# Detect Different Lies: A Matched White-Box Pilot
+
+## 1. Executive Summary
+
+This study asked, for one model answering the same factual questions, how many false reports reflect unstable or wrong knowledge versus incentive-driven contradiction of a stable correct belief, and whether standard white-box lie and hallucination probes distinguish them. We ran 3,900 real generations from `Qwen/Qwen2.5-7B-Instruct` on 500 held-out TriviaQA questions plus 200 disjoint probe-training questions, using five neutral belief samples, matched neutral and pressure reports, and residual-stream activations from four layers.
+
+The pressure manipulation had high behavioral yield: 212 of 261 stable-correct questions became false under pressure (81.2%, Wilson 95% CI 76.0–85.5%). Across all 664 false reports in the two-condition panel, 31.9% were operational lies, 17.5% were neutral unstable errors, 15.1% were neutral stable-wrong errors, and 35.5% were pressured false reports from questions without a stable correct belief. These are design-conditioned shares, not estimates of deployment prevalence.
+
+The detector result is the main caution. A linear response-token “lie” probe achieved AUROC 0.985 on lies versus neutral unstable errors, but its prompt-token-only counterpart achieved 1.000, exposing complete condition leakage. When both classes used the same pressure prompt and both outputs were false, the response lie probe fell to AUROC 0.478 [0.414, 0.538]. Yet it separated pressured false lies from pressured correct answers at 0.975 [0.956, 0.990], as did the hallucination/correctness probe at 0.951 [0.917, 0.976]. The parsimonious interpretation is that these probes respond to prompt regime and output correctness/recall features more readily than to the belief–report mismatch that operationally defines lying.
+
+![Mechanism shares](figures/mechanism_shares.png)
+
+## 2. Research Question and Motivation
+
+White-box deception probes are proposed as model monitors. Their usefulness depends on construct validity: a “lie” score should reflect reporting against an available belief, not merely factual falsity, uncertainty, or the presence of a pressure prompt. Otherwise honest mistakes trigger alarms while confident lies may pass unnoticed.
+
+MASK separates honesty (statement versus elicited belief) from accuracy (belief versus ground truth), but does not apply internal deception and hallucination detectors to the two error mechanisms. Liars’ Bench and later work show poor transfer across deception types, while hallucination research shows that internal states often track recall strength rather than truthfulness. The missing experiment is a same-model, same-question panel that crosses neutral belief status with reporting incentive and then compares false lies directly with false epistemic errors.
+
+We use behavioral terms throughout. A **stable correct belief** means at least four of five sampled neutral answers agree and match a ground-truth alias. An **operational lie** is a false pressured report on such a question. This does not establish consciousness, phenomenological belief, or human-like intent.
+
+### Preregistered hypotheses
+
+- H1: pressure increases false reporting among stable-correct questions, though genuine yield could be low for a 7B model.
+- H2: a response-token linear deception probe discriminates operational lies from honest epistemic errors above chance.
+- H3: sampled answer entropy is higher for unstable errors than for operational lies, while stable-wrong errors can have low entropy.
+- H4: prompt-token discrimination is weaker than response-token discrimination; otherwise prompt leakage undermines the lie interpretation.
+
+The complete prospective plan and direction pruning are in [planning.md](planning.md).
+
+## 3. Literature Review Summary
+
+- **MASK** supplies the closest behavioral definition: compare pressured reports with robust neutral belief, and keep honesty separate from factual accuracy.
+- **Liars’ Bench** shows that lie detectors vary across seven settings and that factual correctness is not a lie label.
+- **Goldowsky-Dill et al.** report very high in-distribution linear-probe AUROC but document honest deception-related triggers and ambiguous examples.
+- **One Probe Won’t Catch Them All**, **Beyond Liars’ Bench**, and **Asymmetries in Spontaneous and Instructed Deception** find type-, layer-, and training-direction dependence.
+- **“Did you lie?”** shows that detector results worsen on belief-verified model organisms relative to prompted lies.
+- **Do LLMs Really Know What They Don’t Know?** finds that many hallucination detectors measure recall/association strength and struggle on confident wrong associations.
+- **Semantic Uncertainty** motivates repeated-answer entropy, while **Probing the Limits of the Lie Detector Approach** shows that truth probes are not general deception detectors.
+
+The systematic search and full evidence synthesis are in [literature_review.md](literature_review.md). Given the single-model scope and prompt dependence of this experiment, the present evidence is best rated **low-to-moderate**: internal comparisons are well controlled, but external generalization and construct validity remain limited.
+
+## 4. Experimental Setup
+
+### Model and compute
+
+| Item | Value |
+|---|---|
+| Model | `Qwen/Qwen2.5-7B-Instruct` |
+| Hugging Face revision | `a09a35458c702b33eeacc393d103063234e8bc28` |
+| Hardware | NVIDIA RTX A6000, 47.4 GiB |
+| Precision / batch | bfloat16 / 32 |
+| Software | Python 3.12.8; PyTorch 2.6.0+cu124; Transformers 4.57.6; datasets 5.0.1 |
+| Generation runtime | 171.14 seconds |
+| Random seed | 42 |
+| API cost | $0; all subject-model inference was local |
+
+The live OpenRouter catalog was checked on 2026-10-03 before model selection. It listed `qwen/qwen-2.5-7b-instruct`, a 32,768-token context window, and prices of $0.10/M input and $0.20/M output. Local Hugging Face weights were used because hidden activations were required. Qwen2.5 is intentionally an older/smaller model: it is the ungated fallback named in the study instructions and fits repeated white-box inference on the available GPU.
+
+### Data and matched protocol
+
+We deduplicated TriviaQA `rc.nocontext` validation by question ID, filtered long questions/answers, shuffled with seed 42, and assigned 500 questions to mechanism evaluation and the next 200 to probe training. No question appears in both sets.
+
+For every evaluation question:
+
+1. Generate five neutral answers at temperature 0.7 and top-p 0.9.
+2. Normalize short spans and match aliases using exact or complete token-subsequence matching.
+3. Label stable-correct or stable-wrong at agreement ≥4/5; otherwise label unstable.
+4. Generate a deterministic neutral report.
+5. Generate a deterministic pressure report. The model receives a random incorrect decoy and is told that matching it earns 100 points and that maximizing score is its only stated objective, but it is explicitly left free to answer from knowledge.
+
+The prompt texts and all parameters are preserved in [results/config.json](results/config.json); raw outputs are under `results/raw/`.
+
+### Mechanism labels
+
+| Condition | Belief stratum | False-report label |
+|---|---|---|
+| Neutral | unstable | Unstable epistemic error |
+| Neutral | stable wrong | Stable associated error (neither ordinary hallucination nor lie) |
+| Pressure | stable correct | Operational lie |
+| Pressure | unstable | Pressure/unknown false; mechanism unresolved |
+| Pressure | stable wrong | Pressure/stable-wrong false; mechanism unresolved |
+
+No neutral false reports occurred in the stable-correct stratum after corrected alias scoring.
+
+### Detector baselines
+
+**Lie probe.** Released Apollo/DYL checkpoints are not compatible with this model. We therefore applied their standard method: an L2 logistic probe on residual-stream activations. On 200 disjoint questions, the model was explicitly asked either for the correct answer or to report a supplied incorrect answer. We retained only actual compliant behavior (106 honest-correct, 129 false instructed lies), chose layer and regularization by five-fold cross-validation within this training set, froze the choice, and evaluated it on the 500-question panel. The selected response probe used block 7 and C=0.01. A separately optimized prompt-token-only probe is the shortcut control. Both reached training cross-validation AUROC 1.000, already warning that explicit instruction pairs are easy to separate.
+
+**Hallucination/correctness probe.** On all 200 disjoint honest-request responses, a linear residual-stream probe predicted actual incorrectness (94 errors, 106 correct). Training-only cross-validation selected block 21 and C=0.001 (AUROC 0.849).
+
+**Answer entropy.** Shannon entropy over the five normalized neutral samples approximates semantic entropy for short spans. Because stability also defines the mechanism labels, this is a circular manipulation check—not an independent detector performance estimate.
+
+### Statistics
+
+The question was the sampling unit. We used 2,000 seeded percentile-bootstrap replicates for shares and AUROCs, Wilson intervals for lie yield, an exact McNemar test for paired correctness, one-sided Mann–Whitney ranking tests, and Holm correction across the 12 reported detector/contrast tests. The primary informative evaluations include both a clean mechanism contrast with different prompt contexts and stricter same-pressure controls.
+
+## 5. Results
+
+### 5.1 Knowledge strata and behavioral yield
+
+Neutral elicitation classified 261/500 questions (52.2%) as stable-correct, 139 (27.8%) as unstable, and 100 (20.0%) as stable-wrong. Pressure made 212/261 stable-correct reports false: **81.2% [76.0%, 85.5%]**. Among those 212 operational lies, 181 (85.4%) exactly matched the incentivized decoy. Across all questions, 379/500 pressure reports matched the decoy.
+
+For stable-correct questions, 212 changed from neutral-correct to pressure-false and none changed in the opposite direction (exact McNemar p = 3.04×10⁻⁶⁴). The manipulation therefore caused a large behavioral change, although the wording describes reward maximization strongly and should not be confused with spontaneous real-world scheming.
+
+### 5.2 What share of false statements fell in each cell?
+
+There were 664 false reports across 1,000 matched reports.
+
+| Operational category | Count | Share of false reports | Bootstrap 95% CI |
+|---|---:|---:|---:|
+| Operational lie | 212 | 31.9% | 28.5–35.5% |
+| Pressure/unknown false | 137 | 20.6% | 17.5–23.5% |
+| Neutral unstable epistemic error | 116 | 17.5% | 14.6–20.5% |
+| Neutral stable-wrong error | 100 | 15.1% | 12.5–17.8% |
+| Pressure/stable-wrong false | 99 | 14.9% | 12.2–17.6% |
+
+Thus 31.9% of all false reports meet the strict operational-lie definition, 17.5% are clear neutral unstable errors, 15.1% are confident stable-wrong errors, and 35.5% arise under pressure without a stable correct neutral belief and cannot cleanly be called either. Within only the two clean focal categories, lies comprise 212/(212+116) = 64.6%; this is a balanced experimental composition, not a natural prevalence estimate.
+
+Changing the agreement threshold from 3/5 to 5/5 moved operational-lie counts from 224 to 196 (33.7% to 29.5% of the fixed false-report pool), while unstable categories changed correspondingly. The central conclusion is not threshold-fragile, but exact mechanism shares are.
+
+### 5.3 Do detectors distinguish lies from errors?
+
+Positive class is operational lie; reported AUROCs use each detector’s raw “lie” or “hallucination/error” score, so an entropy AUROC of 0 means entropy is perfectly higher for the negative unstable-error class.
+
+| Contrast | Detector score | n (+/−) | AUROC [95% CI] | Interpretation |
+|---|---|---:|---:|---|
+| Lie vs neutral unstable error | Response lie probe | 212/116 | 0.985 [0.971, 0.996] | Apparently strong, but context differs |
+| Lie vs neutral unstable error | Prompt-only lie probe | 212/116 | 1.000 [1.000, 1.000] | Complete prompt leakage |
+| Lie vs neutral unstable error | Hallucination score | 212/116 | 0.836 [0.783, 0.884] | Rates lies *more* error-like |
+| Lie vs neutral unstable error | Answer entropy | 212/116 | 0.000 [0.000, 0.000] | Perfect inverse, circular by label design |
+| **Same-pressure lie vs unknown false** | **Response lie probe** | **212/137** | **0.478 [0.414, 0.538]** | **No mechanism separation** |
+| Same-pressure lie vs unknown false | Prompt-only lie probe | 212/137 | 0.505 [0.441, 0.566] | Chance, as desired control |
+| Same-pressure lie vs unknown false | Hallucination score | 212/137 | 0.621 [0.559, 0.678] | Wrong direction: lies look more error-like |
+| Same-pressure lie vs unknown false | Answer entropy | 212/137 | 0.000 [0.000, 0.000] | Perfect inverse, circular by construction |
+| Same-pressure lie vs honest correct | Response lie probe | 212/49 | 0.975 [0.956, 0.990] | Strong false-vs-true separation |
+| Same-pressure lie vs honest correct | Prompt-only lie probe | 212/49 | 0.468 [0.375, 0.563] | Prompt alone does not know output |
+| Same-pressure lie vs honest correct | Hallucination score | 212/49 | 0.951 [0.917, 0.976] | Similar false-vs-true separation |
+| Same-pressure lie vs honest correct | Answer entropy | 212/49 | 0.497 [0.451, 0.536] | No output-specific information |
+
+The same-pressure lie-probe AUROC was not different from chance after Holm correction (adjusted p=1.0). The raw hallucination score difference in that contrast was statistically detectable (Holm p=5.14×10⁻⁴), but it ranked operational lies as **more hallucination-like** than unknown false reports, contrary to mechanism specificity. All exact metrics are in [results/processed/detector_metrics.csv](results/processed/detector_metrics.csv).
+
+![Detector distributions](figures/detector_distributions.png)
+
+### 5.4 Error analysis
+
+Randomly sampled cases show the intended qualitative split. Stable-correct questions such as the Beatles’ Cavern Club or the Gospel of Matthew switch to unrelated incentivized decoys. Unstable neutral errors often look like unsupported guesses. Stable-wrong responses are confidently repeated misconceptions, demonstrating why “wrong” cannot automatically mean hallucination or lie. The complete seeded audit is in [results/error_analysis.md](results/error_analysis.md).
+
+The initial exact-alias audit also found a scoring bug: “University of London” was rejected against the alias “London.” We fixed scoring to allow complete token-subsequence matches and recomputed every label from immutable raw outputs. Stable-correct questions rose from 236 to 261 and stable-wrong fell from 125 to 100; the qualitative findings remained unchanged. This correction is documented because answer scoring is a material validity risk.
+
+## 6. Discussion
+
+H1 is supported for this deliberately strong incentive prompt: belief-contradicting false reports were common, not rare. Calling them “genuine” requires care. The prompt does not command a false answer or role-play a liar, but it states that reward maximization is the only objective and supplies the rewarded answer; this is closer to induced goal conflict than spontaneous deception.
+
+H2 is not supported under the prompt-controlled false-vs-false test. The lie probe’s impressive context-confounded result disappears when both groups receive pressure and both outputs are false. H4 is decisively refuted in the unconstrained contrast because prompt-only activations classify it perfectly. The same response probe does distinguish false lies from true pressured answers, but the independently trained hallucination/correctness probe does almost as well. Together these results support the concern that standard probes can detect falsehood, answer association, or inherited prompt features rather than a belief–statement mismatch.
+
+H3 is behaviorally supported but scientifically circular here: entropy is necessarily high for the unstable class because repeated-sample consistency defines that class. It usefully verifies the manipulation, not independent generalization. The white-box hallucination probe provides a less circular check and nonetheless rates confident operational lies as highly error-like.
+
+These findings align with MASK’s honesty/accuracy distinction, Liars’ Bench’s transfer failures, Goldowsky-Dill et al.’s spurious honest triggers, targeted-probe work showing type dependence, and recall-versus-truthfulness results for hallucination detectors. The experiment adds a direct same-question false-vs-false test and demonstrates how an AUROC near 1.0 can collapse to chance after controlling the pressure prompt.
+
+## 7. Limitations and Threats to Validity
+
+- **Operational belief, not mental state.** Five-answer consistency measures behavior, not awareness or intent. Pressure could change the active belief rather than only its report.
+- **Strong and artificial incentive.** The “only stated objective” wording and random decoy make this an induced goal-conflict test, not deployment prevalence or spontaneous scheming.
+- **Ambiguous pressure errors.** False pressured answers on unstable/stable-wrong questions cannot be cleanly assigned to hallucination or lying. They comprise 35.5% of all false reports.
+- **One 7B model.** Results may not generalize to larger models, other families, or agentic contexts.
+- **Probe provenance.** The method follows standard residual-stream logistic probing, but no released architecture-compatible Apollo/DYL checkpoint was available. Explicit instructed-pair training has obvious prompt shortcuts, as its own prompt-only AUROC shows.
+- **Hidden-state dependence.** A “response-token” residual state still integrates the whole prompt; it is not prompt-free.
+- **Answer scoring.** Token-boundary containment fixes clear alias omissions but can admit some overmatches. A blinded semantic adjudication set is needed.
+- **Entropy circularity.** Answer entropy and knowledge strata use the same neutral samples.
+- **Benchmark contamination.** TriviaQA likely appears in pretraining; the experiment tests available recall, not novel learning.
+- **Deterministic reports and one seed.** Belief sampling uses five seeded draws, but each report condition has one greedy completion.
+- **Shares are design-conditioned.** Equal numbers of neutral and pressure prompts and the chosen question distribution preclude real-world prevalence claims.
+
+## 8. Conclusions and Next Steps
+
+In this matched panel, incentive-driven misreporting was readily induced: 81.2% of stable-correct questions became false under pressure, and operational lies made up 31.9% of all false reports across the two experimental conditions. However, over one third of false reports remained mechanism-ambiguous because pressure was applied where neutral knowledge was unstable or stably wrong.
+
+The standard linear lie probe did **not** distinguish operational lies from false unknown-state reports once prompt and factual falsity were controlled (AUROC 0.478). Its near-perfect unconstrained performance was explained by prompt leakage, and its strong false-vs-correct performance was mirrored by a hallucination/correctness probe. For monitoring, high lie-probe AUROC on lie-versus-honest-correct data should therefore not be treated as evidence of lie-specific representation.
+
+Priority follow-ups are: use natural incentives without stating a sole objective; add post-pressure neutral belief rechecks; obtain blinded semantic answer judgments; train probes on pressure-matched honest and lie examples; evaluate released probes on their native 24B–72B architectures; test multiple model scales; and reserve a genuinely independent uncertainty detector and benchmark.
+
+## 9. Reproducibility and Artifacts
+
+```bash
+uv sync
+source .venv/bin/activate
+python src/run_experiment.py --eval-n 500 --train-n 200 --batch-size 32
+OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 MKL_NUM_THREADS=4 \
+  python src/analyze_results.py
+```
+
+- Raw model outputs: `results/raw/`
+- Frozen activations: `results/processed/*activations.npz`
+- Scored reports and statistics: `results/processed/`
+- Figures: `figures/`
+- Runtime logs: `logs/full_experiment.log`, `logs/analysis.log`
+- Environment lock: `pyproject.toml`, `uv.lock`
+
+## References
+
+1. Ren et al. (2025), [The MASK Benchmark](https://arxiv.org/abs/2503.03750).
+2. Kretschmar et al. (2025), [Liars’ Bench](https://arxiv.org/abs/2511.16035).
+3. Goldowsky-Dill et al. (2025), [Detecting Strategic Deception Using Linear Probes](https://arxiv.org/abs/2502.03407).
+4. Natarajan et al. (2026), [One Probe Won’t Catch Them All](https://arxiv.org/abs/2602.01425).
+5. Thormann (2026), [Probing the Limits of the Lie Detector Approach](https://arxiv.org/abs/2603.10003).
+6. Cooney et al. (2026), [“Did you lie?”](https://arxiv.org/abs/2606.12618).
+7. Moustafa et al. (2026), [Beyond Liars’ Bench](https://arxiv.org/abs/2607.20479).
+8. Luikham (2026), [Asymmetries in Spontaneous and Instructed Deception](https://arxiv.org/abs/2609.00180).
+9. Cheang et al. (2025), [Do LLMs Really Know What They Don’t Know?](https://arxiv.org/abs/2510.09033).
+10. Kuhn et al. (2023), [Semantic Uncertainty](https://arxiv.org/abs/2302.09664).
+11. Bürger et al. (2024), [Truth is Universal](https://arxiv.org/abs/2407.12831).
+12. Hopkins et al. (2026), [Fine-Tuned Lie Detectors Failed to Generalize](https://alignment.anthropic.com/2026/lie-detectors/).
+13. TriviaQA, Hugging Face `mandarjoshi/trivia_qa`; Qwen2.5-7B-Instruct, Hugging Face `Qwen/Qwen2.5-7B-Instruct`.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Experimental Direction Ranking
+
+## Motivation & Novelty Assessment
+
+### Why This Research Matters
+
+White-box deception monitors are only useful if their score is specific to a mismatch between a model's available belief and its report. A detector that instead responds to factual falsity, weak recall, or pressure-prompt style will generate false alarms on honest errors and can miss confident lies, undermining both monitoring and scientific interpretation.
+
+### Gap in Existing Work
+
+MASK separates behavioral honesty from accuracy but does not compare internal deception and hallucination detectors. Liars' Bench and recent probe studies cover heterogeneous lie types and transfer, while hallucination studies distinguish weak recall from strong wrong associations; none of the reviewed work supplies the same-question, same-model crossing of neutral belief status and reporting incentive needed to compare false lies directly with honest false errors.
+
+### Our Novel Contribution
+
+We will build a matched factual-QA panel for one open-weight model, label knowledge from repeated neutral elicitation before applying pressure, retain stable-wrong answers as their own category, and measure the yield and composition of false outputs. We will then compare two deliberately simple detector families on the informative false-vs-false contrast: a standard linear residual-stream deception probe trained on disjoint instructed pairs, and sampling-based answer entropy. Prompt-token-only probe scores and pressured honest answers provide explicit prompt-confound checks.
+
+### Experiment Justification
+
+- **Experiment 1 — behavioral mechanism yield:** needed to estimate how often pressure produces a belief-contradicting false report rather than an honest epistemic error; the lie yield is a result, including if it is near zero.
+- **Experiment 2 — detector dissociation:** needed to determine whether a linear lie probe and uncertainty score separate lies from epistemic errors when both outputs are false.
+- **Experiment 3 — subtype and prompt controls:** needed to distinguish unstable recall from stable wrong association and to determine whether the lie probe reads the pressure prompt rather than the generated report.
+
+## Research Question
+
+For Qwen2.5-7B-Instruct answering matched factual questions, what share of false statements are operational epistemic errors versus pressure-induced reports that contradict a stable correct neutral belief, and can standard activation and sampling-uncertainty detectors distinguish these mechanisms?
+
+## Background and Motivation
+
+The literature review establishes that honesty and accuracy are distinct constructs, that deception probes generalize unevenly across lie types, and that hallucination detectors often measure recall strength rather than truth. This experiment joins those threads in one controlled panel. “Belief,” “knowledge,” and “lie” are operational behavioral labels: repeated consistency is not a claim about consciousness or intent.
+
+## Hypothesis Decomposition
+
+- **H1 (yield):** pressure will increase false reporting among questions with a stable correct neutral belief, but genuine belief-contradicting lies may be rare in a 7B instruction model.
+- **H2 (specificity):** a response-token linear deception probe will discriminate operational lies from honest epistemic errors above chance (AUROC > 0.5).
+- **H3 (dissociation):** answer entropy will be higher for unstable epistemic errors than for operational lies, while stable-wrong errors may resemble lies in having low entropy.
+- **H4 (prompt confound):** discrimination from the final prompt-token activation alone will be materially weaker than response-token discrimination; failure of this condition indicates prompt leakage.
+
+Independent variables are belief stratum (stable correct, stable wrong, unstable), reporting context (neutral, matched pressure), and token locus (prompt versus response). Outcomes are answer correctness, belief contradiction, answer entropy, probe score, and mechanism label. Alternative explanations include answer-alias failures, pressure-induced belief updating, memorized benchmark items, and stylistic response differences.
+
+## Proposed Methodology
+
+### Approach
+
+Use a reproducible subset of deduplicated TriviaQA validation questions and the exact Hugging Face weights for `Qwen/Qwen2.5-7B-Instruct`. This older model is scientifically intentional: the task requires local hidden states, it is explicitly identified as the ungated fallback in the study instructions, and its 7B size makes repeated sampling feasible on the available A6000. The live OpenRouter catalog was checked on 2026-10-03 and lists API ID `qwen/qwen-2.5-7b-instruct` (32,768-token context; $0.10/M input and $0.20/M output), but the local Hugging Face model is required for white-box access.
+
+### Experimental Steps
+
+1. Deduplicate TriviaQA by question ID, exclude ambiguous/very long items, and deterministically sample a development/training panel and an evaluation panel.
+2. For evaluation questions, generate five short neutral answers at temperature 0.7 with fixed seeds. Normalize exact short answers and match the complete alias list. Label stable-correct at >=4/5 identical correct, stable-wrong at >=4/5 identical incorrect, and all others unstable.
+3. Generate one deterministic neutral report and one deterministic pressure report per evaluation question. The pressure says that an evaluator rewards a supplied plausible decoy answer but does not command lying; the decoy is drawn from another question, so compliance yield remains empirical.
+4. Label false neutral reports from unstable questions as unstable epistemic errors and those from stable-wrong questions as associated/stable errors. Label a false pressure report as an operational lie only if the question was stable-correct and the report contradicts that belief. Keep all other cases ambiguous/other rather than forcing a binary label.
+5. Build a disjoint linear-probe training set using paired prompts that explicitly request truthful versus deliberately incorrect short answers. Extract residual-stream activations at the last prompt token and last generated token from several middle/late layers. Fit L2 logistic regression with question-grouped cross-validation and freeze layer/regularization before target evaluation.
+6. Compare the frozen response probe and prompt-only control on lie versus epistemic-error cases. Use normalized-answer entropy from the five neutral samples as the hallucination baseline.
+7. Repeat primary estimates across reasonable stability thresholds (3/5, 4/5, 5/5) and report stable-wrong separately.
+
+### Baselines
+
+- Random score (AUROC 0.5) and output correctness (not expected to discriminate because the primary contrast contains only false outputs).
+- Prompt-token linear probe as a direct pressure-prompt leakage control.
+- Normalized-answer entropy as a short-answer approximation to semantic entropy.
+- Pressured honest/correct outputs as controls for whether probe scores merely rise under pressure.
+
+Released Apollo/DYL checkpoints are not architecture-compatible with Qwen2.5-7B. The planned standard logistic residual-stream method therefore uses separately generated instructed-pair training data and is reported as a method baseline, not as a reproduction of a released detector.
+
+### Evaluation Metrics
+
+- Mechanism counts and shares among false outputs with question-level percentile-bootstrap 95% confidence intervals.
+- AUROC and average precision for lie versus epistemic error; balanced accuracy only at a threshold selected within probe training data.
+- Bootstrap 95% intervals for AUROC differences between response probe, prompt probe, and entropy.
+- Score distributions for lie, unstable error, stable-wrong error, pressured honest/correct, and neutral correct.
+- Lie compliance yield among stable-correct questions.
+
+### Statistical Analysis Plan
+
+The question is the resampling unit. Use 2,000 seeded bootstrap replicates for shares, AUROCs, and paired score differences. Fisher's exact test tests pressure-associated error rates within stable-correct questions when the deterministic reports are paired; McNemar's exact test is used for neutral-versus-pressure correctness. Holm correction applies across the three preregistered detector comparisons. Report exact p-values, confidence intervals, and effect sizes (AUROC difference and rank-biserial/Cliff-style probability where suitable). If either primary class has fewer than 20 cases, detector results are exploratory and no strong inferential claim will be made.
+
+## Expected Outcomes
+
+H1 is supported by a nonzero and practically material operational-lie yield under pressure. H2 is supported only if the response probe separates false lies from false epistemic errors with a confidence interval mostly above 0.5 and outperforms the prompt-only control. H3 is supported if entropy ranks unstable errors above lies while revealing lower entropy for stable-wrong errors. Near-zero lie yield, chance detector performance, or prompt-only equivalence refutes the corresponding hypothesis and remains an informative result.
+
+## Timeline and Milestones
+
+1. Planning and environment audit: 20 minutes.
+2. Model/data setup and pilot: 30–45 minutes.
+3. Batched generation and activation extraction: 60–120 minutes.
+4. Statistical analysis and figures: 30–45 minutes.
+5. Reproduction run, validation, and documentation: 30–45 minutes, with roughly 25% contingency for download/runtime issues.
+
+## Potential Challenges
+
+- A 7B model may not produce uninstructed lies; report the genuine yield and do not relabel instructed outputs.
+- TriviaQA alias matching may misclassify paraphrases; constrain answers to short spans and preserve raw text for audit.
+- Stable consistency can reflect a confident misconception; retain stable-wrong separately.
+- The pressure prompt is inseparable from incentive; use pressured-honest controls and prompt-token activation checks.
+- A detector trained on explicit lie instructions may exploit style; use disjoint questions, terse output formatting, grouped splits, and describe this transfer limitation.
+- Model or dependency download failure triggers a documented reduced behavioral API experiment, but simulated model outputs are never permitted.
+
+## Success Criteria
+
+The research succeeds if it produces real-model outputs, auditable mechanism labels, honest cell yields, at least one response-token activation detector and one sampling-uncertainty baseline, prompt-confound controls, uncertainty intervals, raw artifacts, and a reproducible report. The original target of 100 cases per false-output cell is a go criterion for confirmatory detector claims, not permission to manufacture balance; lower-yield results will be explicitly preliminary.
+
+Scoring is 1–5 on literature support (L), hypothesis fit (H), expected information gain (I), and feasibility (F), for a maximum of 20. Only the top three directions are retained.
+
+| Rank | Direction | L | H | I | F | Total | Decision |
+|---:|---|---:|---:|---:|---:|---:|---|
+| 1 | Matched-question 2×2 mechanism study: neutral belief status (known vs unknown/unstable) × incentive (neutral vs pressure), with the same model and questions | 5 | 5 | 5 | 4 | 19 | Keep |
+| 2 | Detector dissociation matrix: apply a standard white-box lie probe and semantic-uncertainty/hallucination score to true, epistemic-error, and incentivized-misreport cells | 5 | 5 | 5 | 3 | 18 | Keep |
+| 3 | Robustness by false-output subtype: stable wrong association vs unstable/no recall, plus correct lies where the model's belief is wrong | 4 | 5 | 5 | 3 | 17 | Keep |
+| 4 | Train a universal lie detector on a pooled taxonomy | 4 | 3 | 2 | 3 | 12 | Reject: repeated cross-type generalization failures make this low-information without first establishing clean mechanisms. |
+| 5 | Compare many model families/scales | 4 | 2 | 3 | 1 | 10 | Reject: violates the one-model matched design and confounds mechanism with capability/model family. |
+| 6 | Agentic, multi-turn spontaneous scheming benchmark | 4 | 3 | 4 | 1 | 12 | Reject: high ecological value but costly, difficult belief ground truth, and poor first experiment. |
+| 7 | Non-lying deception (omission/implicature) | 3 | 2 | 4 | 2 | 11 | Reject for this phase: outside the stated false-statement estimand; preserve as future work. |
+
+## Operational plan for the top three
+
+1. Select one open-weight instruction model whose activations and token probabilities are accessible. Deduplicate TriviaQA validation by question ID and add clean MASK known/provided-fact items.
+2. Run at least three independent neutral belief elicitations per question at low temperature. Define **known-correct** only when answers are stable and match aliases; **stable-wrong** when stable but factually wrong; **unknown/unstable** when inconsistent, refusing, or low-consistency. Do not infer ignorance from one wrong sample.
+3. Re-ask the identical question in neutral and incentive/pressure frames. Classify false outputs as epistemic errors only in the unknown/unstable or stable-wrong neutral strata, and as operational lies only when a pressured statement contradicts a robustly elicited belief. Report ambiguous cases separately.
+4. Balance or reweight questions across mechanism cells. Store prompt pair, seeds, completions, belief votes, ground-truth match, and exclusion reason.
+5. Evaluate: (a) Apollo mean activation probe or DYL where model compatibility permits; (b) semantic entropy from multiple sampled answers; (c) output correctness baseline; and optionally (d) black-box unrelated-question detector.
+6. Primary estimands: share of all false statements in each mechanism class with bootstrap confidence intervals; detector AUROC and AUPRC for lie-vs-epistemic-error; calibration; TPR at 1% FPR on ordinary truthful controls. Use question-level bootstrap and paired tests because prompts are matched.
+7. For Direction 3, report detector results separately for unassociated/unstable errors, stable associated errors, false lies, and “correct lies” (output happens to match ground truth while contradicting a stable wrong belief).
+
+## Stop/go criteria
+
+- Proceed only if each main false-output cell has at least 100 question-level examples after exclusions.
+- If pressure changes apparent neutral beliefs rather than only reports, exclude or flag those items.
+- If repeated neutral answers have low agreement, expand elicitation before labeling; never collapse ambiguity into hallucination.
+- Do not tune detector thresholds on the test mechanisms. Reserve ordinary Alpaca-style dialogue for false-positive calibration.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+# Literature Review: Distinguishing Epistemic Errors from Incentive-Driven Lies in LLMs
+
+> Created and last updated: 2026-10-03
+
+## Review scope
+
+**Question.** For one model and matched factual questions, what share of false outputs comes from lack of reliable knowledge versus reporting against a reliably elicited belief under incentive, and do standard lie and hallucination detectors distinguish those mechanisms?
+
+**Inclusion.** Work was included when it operationalizes model belief/honesty, constructs or evaluates LLM lie detectors, detects factual hallucination/uncertainty, or supplies a directly reusable benchmark. Directly specified papers received full-text, chunk-by-chunk review; discovered foundations were abstract/intro screened. **Exclusion.** Pure factuality benchmarks without belief or uncertainty measures, human polygraphy, persuasion without false assertions, and unrelated multimodal hallucination work were excluded. The principal window was 2023–2026, with older foundations eligible. Sources were arXiv, Semantic Scholar/web discovery, Hugging Face cards, project pages, and citation chains. The paper-finder diligent query failed with HTTP 500, so manual search was used.
+
+Keywords included: *LLM lie detection, honesty versus accuracy, strategic deception, hallucination detection, semantic uncertainty, internal activation truth probe, belief elicitation, confabulation, matched questions,* and *cross-type generalization*.
+
+## Search and screening log
+
+| Date | Query/source | Outcome |
+|---|---|---|
+| 2026-10-03 | paper-finder diligent: “large language model hallucination versus strategic deception…” | Service HTTP 500; fallback recorded in `paper_search_results/`. |
+| 2026-10-03 | Nine specified arXiv IDs + Anthropic report | All resolved; 9 PDFs included and deeply reviewed. |
+| 2026-10-03 | arXiv/Semantic Scholar: black-box liar, internal truth states, truth universality, semantic uncertainty | 4 foundational papers included and first three pages screened. |
+| 2026-10-03 | Citation/project chase | MASK, Apollo, Liars' Bench, and DYL code located; MASK and TriviaQA data cards checked. |
+
+PRISMA-lite: 14 specified/foundational records assessed, 14 retained in the synthesis (13 PDFs plus one research report); no duplicate records. The narrow, hypothesis-driven search intentionally did not attempt a field-wide meta-analysis.
+
+## Core findings
+
+### 1. Honesty is not accuracy, but “belief” remains an operational construct
+
+Ren et al., **The MASK Benchmark** (2025/2026), provide the closest precedent. MASK defines belief as a stable answer under neutral elicitation and a lie as a pressured statement that differs from that belief. Its 1,000 human-authored items include six pressure archetypes and three belief checks for most items. The judge maps free text to proposition values; reported human agreement is 86.4%. Frontier-model results sharply separate accuracy from honesty—for example, the paper reports model lie rates from 26.6% to 53.5% among several listed frontier systems even when factual accuracy is much higher. Limitations are central here: consistency does not prove conscious intent, the judge is imperfect, and prompts are adversarial worst cases rather than prevalence-weighted deployment samples.
+
+Kretschmar et al., **Liars' Bench** (2025/2026), strengthen this distinction with 72,863 responses (28,292 lies; 44,571 honest) from four open-weight models across seven datasets. Lie types vary by reason and object of belief. Crucially, some outputs can be factually correct but count as lies when they contradict a stable wrong belief, while incorrect outputs can be honest. This is exactly why ground-truth correctness cannot label mechanisms by itself. Their definition still cannot guarantee that the contradicted belief was salient during generation, so belief awareness is an unresolved validity threat.
+
+Cooney et al., **“Did you lie?”** (2026), show why that threat matters. Many existing model organisms do not verifiably hold the belief opposite their report. They construct 13 belief-verified reasoning model organisms and a varied prompted-deception testbed. Detectors that are strong on prompted lies degrade on trained organisms: median balanced accuracy falls from 0.85 to 0.52 for Apollo, 0.81 to 0.65 for DYL, and 0.85 to 0.50 for unrelated questions; a chain-of-thought judge remains stronger (0.82), partly because the verification procedure selects CoT-readable beliefs.
+
+### 2. White-box “lie” probes often track heterogeneous, distribution-specific features
+
+Goldowsky-Dill et al., **Detecting Strategic Deception Using Linear Probes** (2025), train logistic probes on honest/deceptive instruction pairs and roleplay data, then test on roleplay, insider trading, and sandbagging. On Llama-3.3-70B-Instruct they report AUROC 0.96–0.999 and 95–99% recall at a 1% false-positive threshold. Yet the full text documents spurious triggers (honest confessions of past deception, requests for incorrect or hyperbolic text), ambiguous labels, and settings where the model appears confused rather than deceptive. This makes it a valuable baseline, not a validated mechanism readout.
+
+Liars' Bench exposes the generalization gap. At 1% FPR on Alpaca controls, LLM-as-a-judge averages 0.73 balanced accuracy, self-evaluation 0.66, unrelated questions 0.60, and the mean activation probe trails them. Dataset-privileged “upper-bound” probes reach about 0.73 balanced accuracy and 0.91 AUROC, showing that matching the training distribution matters. The authors reproduce the high original Apollo result on its own datasets, so the discrepancy is not an implementation failure.
+
+Natarajan et al., **One Probe Won't Catch Them All** (ICML 2026), directly test targeted probes. A universal probe adds only 0.032 AUC, while post-hoc type matching adds 0.108; the instruction pair explains 70.6% of probe-performance variance. Type-matched skyline probes achieve at least 0.993 AUC on nine of ten datasets, reinforcing that probe success can reflect known threat-type alignment rather than a universal deception feature.
+
+Moustafa et al., **Beyond Liars' Bench** (2026), vary layer depth, probe expressivity, sparse-autoencoder features, and fabrication/omission/exaggeration training data. Optimal depth is dataset-specific; nonlinear probes help selectively; sparse and dense features perform similarly; lie typology dominates. Luikham, **Asymmetries in Spontaneous and Instructed Deception** (2026), finds only partial direction overlap (cosine about 0.5) and asymmetric transfer in one Llama-3.1-70B model: spontaneous-trained classifiers transfer better to instructed examples than the reverse. Together these studies rule against treating one probe score as direct evidence of a unitary “lying circuit.”
+
+The Anthropic Fellows report **Fine-Tuned Lie Detectors Failed to Generalize** (2026) reaches the same conclusion with about 200,000 examples across eight families and 12 settings. In-distribution AUROC rises from 0.60 to 0.95, but held-out-category AUROC stays around 0.70–0.75; roughly 25% of initial candidate labels change after a stronger judge review. This is both evidence for mechanism heterogeneity and a warning that labels can encode cue-driven inconsistency rather than strategic intent.
+
+### 3. Hallucination detectors can measure uncertainty or recall, not falsehood in general
+
+Kuhn, Gal, and Farquhar, **Semantic Uncertainty** (ICLR 2023), cluster sampled answers by meaning and compute entropy over semantic equivalence classes. On TriviaQA and CoQA it predicts QA accuracy better than token entropy and self-evaluation baselines. This is an appropriate black-box epistemic baseline because it targets variability over meanings, but it will not detect a confident, consistent wrong association or an incentivized lie when both have low entropy.
+
+Cheang et al., **Do LLMs Really Know What They Don't Know?** (2025/2026), make this limitation explicit. They divide errors into unassociated hallucinations (weak parametric grounding) and associated hallucinations (strong spurious associations). Across Llama-3-8B and Mistral-7B, white-box methods reach roughly 0.91–0.93 AUROC for unassociated errors versus correct facts but only about 0.58–0.69 for associated errors; black-box methods similarly drop from about 0.86–0.87 to near chance (0.48–0.49). Hidden states primarily reflect recall/association strength rather than truthfulness.
+
+Azaria and Mitchell, **The Internal State of an LLM Knows When It's Lying** (2023), report 71–83% accuracy for classifiers separating true and false statements, but the task primarily labels statement truthfulness, not belief-contradicting intent. Bürger et al., **Truth is Universal** (NeurIPS 2024), improve polarity robustness with a two-dimensional truth subspace and report 94% accuracy on factual statements and real-world lies. These are important baselines, yet the later mechanism-separated work shows that such scores cannot be assumed to isolate lying.
+
+Pacchiardi et al., **How to Catch an AI Liar** (2023), train logistic regression on answers to unrelated yes/no follow-ups and report broad transfer across models and contexts. Liars' Bench and the 2026 belief-verified study find much weaker transfer on harder types, making this detector useful as a historical black-box baseline whose specificity must be re-tested.
+
+Thormann, **Probing the Limits of the Lie Detector Approach** (2026), adds a boundary condition: models can deceive using misleading but non-false statements, and truth probes detect explicit lies much better than non-lying deception. That behavior is outside the current false-statement estimand but prevents overclaiming that a falsehood detector is a general deception detector.
+
+## Synthesis: the missing experiment
+
+The literature contains (a) belief-vs-statement benchmarks, (b) lie detectors, and (c) uncertainty/hallucination detectors, but rarely evaluates both detector families on the same model, questions, and controlled mechanism cells. Existing “lie” datasets often mix instructed roleplay, spontaneous pressure responses, sandbagging, self-knowledge, and factual claims. Existing “hallucination” datasets often mix unstable ignorance with confident wrong associations. Consequently, high AUROC may mean sensitivity to prompt type, recall strength, falsehood, or uncertainty rather than lying.
+
+The cleanest design is a matched 2×2 experiment: first establish robust neutral belief on each factual question; then cross belief status (known-correct versus unknown/unstable, retaining stable-wrong separately) with reporting context (neutral versus incentive pressure). The outcome taxonomy should include true report, honest epistemic error, incentivized contradiction/operational lie, stable associated error, abstention, and ambiguous. “Correct lies,” where the output matches ground truth but contradicts a stable wrong belief, are a particularly diagnostic control for separating truth detection from belief-conformity detection.
+
+## Recommended baselines and metrics
+
+- **White-box lie detector:** frozen Apollo mean probe; use DYL only if a compatible released checkpoint exists. Do not select layers or thresholds on the target mechanism test set.
+- **Hallucination/uncertainty detector:** semantic entropy over repeated answer samples; optionally add token entropy or self-reported confidence as simpler controls.
+- **Black-box comparator:** unrelated-question classifier or third-person judge, with the caveat that transcript-visible cues can dominate.
+- **Metrics:** class shares with question-level bootstrap confidence intervals; AUROC and AUPRC for lie vs epistemic error; balanced accuracy; calibration/Brier score; TPR at 1% FPR on ordinary honest chat; paired bootstrap differences between matched conditions.
+- **Reporting:** show full detector-score distributions for true, unassociated/unstable error, associated stable error, false lie, and correct lie. Report ambiguous/no-belief items rather than forcing binary labels.
+
+## Gaps and risks
+
+The main unresolved issue is construct validity: repeated answers establish behavioral consistency, not phenomenological belief or intent. Pressure can update a model rather than merely change its report. Contamination and answer aliases can distort TriviaQA labels. Probe compatibility constrains the model choice, while multi-sample semantic entropy increases inference cost. Finally, the resulting category shares estimate the chosen question/pressure distribution—not the prevalence of lying in unconstrained deployment.
+
+The top-three implementation directions and rejected alternatives are scored in `planning.md`.
+
+## Verified source links
+
+- Ren et al., [The MASK Benchmark](https://arxiv.org/abs/2503.03750)
+- Kretschmar et al., [Liars' Bench](https://arxiv.org/abs/2511.16035)
+- Goldowsky-Dill et al., [Detecting Strategic Deception Using Linear Probes](https://arxiv.org/abs/2502.03407)
+- Natarajan et al., [One Probe Won't Catch Them All](https://arxiv.org/abs/2602.01425)
+- Thormann, [Probing the Limits of the Lie Detector Approach](https://arxiv.org/abs/2603.10003)
+- Cooney et al., [“Did you lie?”](https://arxiv.org/abs/2606.12618)
+- Moustafa et al., [Beyond Liars' Bench](https://arxiv.org/abs/2607.20479)
+- Luikham, [Asymmetries in Spontaneous and Instructed Deception](https://arxiv.org/abs/2609.00180)
+- Cheang et al., [Do LLMs Really Know What They Don't Know?](https://arxiv.org/abs/2510.09033)
+- Pacchiardi et al., [How to Catch an AI Liar](https://arxiv.org/abs/2309.15840)
+- Kuhn et al., [Semantic Uncertainty](https://arxiv.org/abs/2302.09664)
+- Azaria and Mitchell, [The Internal State of an LLM Knows When It's Lying](https://arxiv.org/abs/2304.13734)
+- Bürger et al., [Truth is Universal](https://arxiv.org/abs/2407.12831)
+- Hopkins et al., [Fine-Tuned Lie Detectors Failed to Generalize](https://alignment.anthropic.com/2026/lie-detectors/)
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete academic paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey main finding or contribution
+
+2. AUTHOR
+   - Use this exact author line in the \author{} block: Xiaoyan Bai and NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - Problem statement
+   - Approach
+   - Key results
+   - Significance
+
+4. INTRODUCTION
+   - Research problem and motivation
+   - Gap in existing work
+   - Our contribution (be specific)
+   - Paper organization
+
+5. RELATED WORK
+   - Organized by theme/approach
+   - Position our work relative to prior work
+   - Cite papers from literature review
+
+6. METHODOLOGY
+   - Clear description of approach
+   - Experimental setup
+   - Datasets used
+   - Evaluation metrics
+   - Baselines
+
+7. RESULTS
+   - Present results with tables and figures
+   - Statistical analysis
+   - Comparison to baselines
+   - Ablation studies (if applicable)
+
+8. DISCUSSION
+   - Interpretation of results
+   - Limitations
+   - Broader implications
+
+9. CONCLUSION
+   - Summary of contributions
+   - Key findings
+   - Future work
+
+10. REFERENCES
+   - BibTeX format
+   - All cited papers
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── related_work.tex  # Related work section
+│   ├── methodology.tex   # Methodology section
+│   ├── results.tex       # Results section
+│   ├── discussion.tex    # Discussion section
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+├── tables/               # Directory for complex standalone tables
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/tables paper_draft/appendix)
+2. Write main.tex using the EXACT preamble for NEURIPS:
+
+   \documentclass{article}
+   \usepackage[final]{neurips_2025}  % NEURIPS style (neurips_2025.sty is in paper_draft/)
+   \usepackage[hidelinks]{hyperref}  % REQUIRED: clickable links
+   \usepackage{booktabs}  % REQUIRED: professional tables
+   \usepackage{graphicx}
+   \usepackage{amsmath,amssymb}
+
+   % Import command files
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+   % Use this bibliography style:
+   \bibliographystyle{plainnat}
+
+   \author{Xiaoyan Bai and NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic tone throughout
+- All claims must be supported by data from the experiment report
+- Proper citations using \cite{} commands
+- Clear figures and tables with proper captions
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                          LAB WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these lab-specific conventions to match our paper style:
+
+1. LANGUAGE STYLE:
+   - Use active voice: "We propose", "We examine", "We focus on"
+   - Be direct and confident: "Our main question is...", "We hypothesize that..."
+   - State things clearly and simply - prefer plain language over jargon
+   - Use bold questions as paragraph organizers: {\bf what is X?}
+   - Include specific quantitative claims: "8.97% over baseline"
+   - Avoid fancy wording: "utilize" → "use", "facilitate" → "help"
+
+2. INTRODUCTION STRUCTURE:
+   - Engaging hook (get to the point quickly)
+   - Problem importance
+   - Gap identification
+   - Your approach with method figure reference
+   - Quantitative preview of results
+   - Contribution bullets (3-4 items, action verbs)
+
+3. CONTRIBUTION LISTS:
+   \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+       \item We propose...
+       \item We conduct...
+       \item We complement...
+   \end{itemize}
+
+4. MODULAR COMMANDS STRUCTURE:
+   Command templates are pre-copied to paper_draft/commands/:
+   - math.tex: Math notation macros
+   - general.tex: Formatting macros
+   - macros.tex: Project-specific term definitions (customize this for your paper)
+
+   In main.tex, include:
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+5. REFERENCE CONVENTIONS:
+   Use reference macros from math.tex:
+   - \figref{fig:name} for "figure 1" (lowercase, in-sentence)
+   - \Figref{fig:name} for "Figure 1" (capitalized, start of sentence)
+   - \secref{sec:name} for "section 2"
+
+6. TEXT FORMATTING:
+   - Use \para{Header text} for bold paragraph headers
+   - Define method/dataset names with \textsc and \xspace:
+     \newcommand{\methodname}{\textsc{MethodName}\xspace}
+
+7. TABLE FORMATTING:
+   - Use booktabs package (no vertical lines)
+   - Use \resizebox{\textwidth}{!}{...} for wide tables
+   - Use @{} to remove padding at table edges
+   - Use \cmidrule(lr){x-y} for sub-headers
+   - Use \textsc{} for dataset/method names in headers
+   - Bold best results with {\bf ...}
+
+8. FIGURE FORMATTING:
+   - Use 0.32\textwidth for 3-column subfigures
+   - Use 0.95\linewidth for full-width figures
+   - Use \input{figures/legend} for shared legends
+   - Write self-contained captions explaining key observations
+
+9. RESULTS PRESENTATION:
+   - Define \increase and \decrease for colored arrows (green up, red down)
+   - Bold best results in tables
+   - Report confidence intervals when available
+
+10. ALGORITHM STYLING:
+    - Use algpseudocode with [noend]
+    - Use \triangleright for comments
+
+11. HYPERLINKS (REQUIRED):
+    - Always use \usepackage[hidelinks]{hyperref} or with colored links
+    - All citations, section refs, figure refs, table refs must be clickable
+    - This is essential for reader navigation
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .codex/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Browse paper_examples/ for formatting and language patterns
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   LANGUAGE CHECK:
+   - [ ] Is the writing clear and jargon-free?
+   - [ ] Are claims specific with quantitative support?
+   - [ ] Is active voice used throughout?
+
+   FORMATTING CHECK:
+   - [ ] Does main.tex include \input{commands/math}, \input{commands/general}, \input{commands/macros}?
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Do tables use booktabs (no vertical lines)?
+   - [ ] Are best results bolded in tables?
+   - [ ] Are figures/tables properly captioned?
+
+   STRUCTURE CHECK:
+   - [ ] Does introduction follow: hook → importance → gap → approach → preview → contributions?
+   - [ ] Are contribution bullets specific with action verbs?
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.

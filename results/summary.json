@@ -1,0 +1,94 @@
+{
+  "n_questions": 500,
+  "belief_strata": {
+    "stable_correct": 261,
+    "unstable": 139,
+    "stable_wrong": 100
+  },
+  "false_reports": 664,
+  "mechanism_counts": {
+    "operational_lie": 212,
+    "pressure_unknown_false": 137,
+    "unstable_error": 116,
+    "stable_wrong_error": 100,
+    "pressure_stable_wrong_false": 99
+  },
+  "stable_correct_pressure_lie_yield": 0.8122605363984674,
+  "stable_correct_n": 261,
+  "mcnemar": {
+    "neutral_correct_pressure_false": 212,
+    "neutral_false_pressure_correct": 0,
+    "p": 3.0385816786431356e-64
+  },
+  "probe_training": {
+    "lie_n": 235,
+    "lie_positive": 129,
+    "lie_layer": 7,
+    "lie_C": 0.01,
+    "lie_cv_auc": 1.0,
+    "prompt_layer": 7,
+    "prompt_C": 0.001,
+    "prompt_cv_auc": 1.0,
+    "hallucination_n": 200,
+    "hallucination_errors": 94,
+    "hallucination_layer": 21,
+    "hallucination_C": 0.001,
+    "hallucination_cv_auc": 0.8493576876756324
+  },
+  "selected_models_cv": {
+    "lie_response": {
+      "layer=7,C=0.001": 0.9998537370191605,
+      "layer=7,C=0.01": 1.0,
+      "layer=7,C=0.1": 1.0,
+      "layer=7,C=1.0": 1.0,
+      "layer=14,C=0.001": 1.0,
+      "layer=14,C=0.01": 1.0,
+      "layer=14,C=0.1": 1.0,
+      "layer=14,C=1.0": 1.0,
+      "layer=21,C=0.001": 1.0,
+      "layer=21,C=0.01": 1.0,
+      "layer=21,C=0.1": 1.0,
+      "layer=21,C=1.0": 1.0,
+      "layer=27,C=0.001": 1.0,
+      "layer=27,C=0.01": 1.0,
+      "layer=27,C=0.1": 1.0,
+      "layer=27,C=1.0": 1.0
+    },
+    "lie_prompt": {
+      "layer=7,C=0.001": 1.0,
+      "layer=7,C=0.01": 1.0,
+      "layer=7,C=0.1": 1.0,
+      "layer=7,C=1.0": 1.0,
+      "layer=14,C=0.001": 1.0,
+      "layer=14,C=0.01": 1.0,
+      "layer=14,C=0.1": 1.0,
+      "layer=14,C=1.0": 1.0,
+      "layer=21,C=0.001": 1.0,
+      "layer=21,C=0.01": 1.0,
+      "layer=21,C=0.1": 1.0,
+      "layer=21,C=1.0": 1.0,
+      "layer=27,C=0.001": 0.9994149480766418,
+      "layer=27,C=0.01": 0.9994880795670615,
+      "layer=27,C=0.1": 0.9994149480766418,
+      "layer=27,C=1.0": 0.9994149480766418
+    },
+    "hallucination": {
+      "layer=7,C=0.001": 0.6760337213970293,
+      "layer=7,C=0.01": 0.6677037334403855,
+      "layer=7,C=0.1": 0.661682055399438,
+      "layer=7,C=1.0": 0.6578683259735046,
+      "layer=14,C=0.001": 0.8026896828582898,
+      "layer=14,C=0.01": 0.784925732637495,
+      "layer=14,C=0.1": 0.7740867121637897,
+      "layer=14,C=1.0": 0.7677639502207949,
+      "layer=21,C=0.001": 0.8493576876756324,
+      "layer=21,C=0.01": 0.8319951826575671,
+      "layer=21,C=0.1": 0.816138097149739,
+      "layer=21,C=1.0": 0.8054997992773987,
+      "layer=27,C=0.001": 0.8134283420313128,
+      "layer=27,C=0.01": 0.8015857085507827,
+      "layer=27,C=0.1": 0.7833199518265758,
+      "layer=27,C=1.0": 0.774588518667202
+    }
+  }
+}

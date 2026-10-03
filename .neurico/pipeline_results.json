@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "stages": {
+    "resource_finder": {
+      "success": true,
+      "completion_marker": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/.resource_finder_complete",
+      "outputs": {
+        "literature_review": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/literature_review.md",
+        "resources_catalog": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/resources.md",
+        "papers_dir": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/papers",
+        "datasets_dir": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/datasets",
+        "code_dir": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/code"
+      },
+      "log_file": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/logs/resource_finder_codex.log",
+      "transcript_file": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/logs/resource_finder_codex_transcript.jsonl",
+      "elapsed_time": 792.5915613174438,
+      "background_processes_terminated": false
+    },
+    "experiment_runner": {
+      "success": true,
+      "return_code": 0,
+      "elapsed_time": 2354.551486968994,
+      "log_file": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/logs/execution_codex.log",
+      "transcript_file": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol/logs/execution_codex_transcript.jsonl",
+      "background_processes_terminated": false
+    }
+  },
+  "work_dir": "/workspaces/detect-different-lies-ce22-codex-gpt-5-6-sol"
+}

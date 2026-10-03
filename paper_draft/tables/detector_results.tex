@@ -1,0 +1,31 @@
+\begin{table*}[t]
+\centering
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llrcccp{5.2cm}@{}}
+\toprule
+Contrast & Detector score & $n$ (+/$-$) & \auroc & \ap & 95\% CI & Interpretation \\
+\midrule
+Lie vs. neutral unstable error
+ & Response lie probe & 212/116 & 0.985 & 0.994 & 0.971--0.996 & Strong ranking, but prompt context differs \\
+ & Prompt-only lie probe & 212/116 & {\bf 1.000} & {\bf 1.000} & 1.000--1.000 & Complete prompt leakage \\
+ & Correctness probe & 212/116 & 0.836 & 0.851 & 0.783--0.884 & Ranks lies as more error-like \\
+ & Answer entropy & 212/116 & 0.000 & 0.607 & 0.000--0.000 & Perfect inverse; circular by label design \\
+\midrule
+{\bf Same-pressure lie vs. unknown false}
+ & {\bf Response lie probe} & {\bf 212/137} & {\bf 0.478} & {\bf 0.583} & {\bf 0.414--0.538} & {\bf Primary false-vs.-false test: no separation} \\
+ & Prompt-only lie probe & 212/137 & 0.505 & 0.606 & 0.441--0.566 & Chance, as expected under matched prompts \\
+ & Correctness probe & 212/137 & 0.621 & {\bf 0.694} & 0.559--0.678 & Significant, but lies look more error-like \\
+ & Answer entropy & 212/137 & 0.000 & 0.569 & 0.000--0.000 & Perfect inverse; circular by construction \\
+\midrule
+Same-pressure lie vs. honest correct
+ & Response lie probe & 212/49 & {\bf 0.975} & {\bf 0.995} & 0.956--0.990 & Strong false-vs.-true separation \\
+ & Prompt-only lie probe & 212/49 & 0.468 & 0.804 & 0.375--0.563 & Prompt alone does not reveal the output \\
+ & Correctness probe & 212/49 & 0.951 & 0.988 & 0.917--0.976 & Similar false-vs.-true separation \\
+ & Answer entropy & 212/49 & 0.497 & 0.811 & 0.451--0.536 & No output-specific information \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Detector evaluation. Positive examples are operational lies, and scores retain their native lie/error orientation. We report AUROC, average precision (AP), and 2,000-replicate question-level bootstrap intervals for AUROC. Bold highlights the decisive controls and the best result within a conventional ranking comparison, not a claim that every larger number is scientifically preferable.}
+\label{tab:detectors}
+\end{table*}

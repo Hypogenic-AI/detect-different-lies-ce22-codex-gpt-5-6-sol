@@ -1,0 +1,9 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We introduced a matched white-box pilot that separates factual error from incentive-driven contradiction of a stable correct neutral answer. In 
+\qwenmodel, pressure turns 212 of 261 stable-correct questions false, and operational lies account for 31.9\% of 664 false reports. At the same time, 35.5\% of false reports occur under pressure without a stable correct neutral belief and remain mechanism-ambiguous.
+
+The detector result is the main takeaway. A response-token lie probe reaches 0.985 AUROC when lies and unstable errors come from different prompt regimes, while a prompt-only probe reaches 1.000. Under the decisive same-pressure false-vs.-false control, response-probe AUROC falls to 0.478. Its 0.975 separation of pressured lies from pressured correct reports is closely matched by a correctness probe at 0.951. Near-perfect lie-versus-correct AUROC therefore does not establish a lie-specific internal representation.
+
+Future work should use natural incentives, recheck neutral beliefs after pressure, obtain blinded semantic answer judgments, and train probes on pressure-matched honest and dishonest examples. Evaluations should extend to released detectors on their native architectures, multiple model scales, sampled report distributions, and genuinely independent uncertainty benchmarks. Most importantly, they should retain the matched false-vs.-false control: a monitor should earn a deception-specific interpretation by distinguishing mechanisms, not merely labels.

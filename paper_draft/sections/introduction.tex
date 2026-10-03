@@ -1,0 +1,25 @@
+\section{Introduction}
+\label{sec:introduction}
+
+A lie detector that alarms on every false answer is not a lie detector. It is a factuality detector with a misleading name. This distinction matters for white-box monitoring: an honest retrieval failure should not be treated as evidence that a model reports against an available belief, while a confident belief-contradicting report should not escape because it resembles ordinary recall. As language models enter settings where their reports affect decisions, construct validity becomes as important as raw predictive performance.
+
+Recent work has made two parts of this problem clear. First, honesty and accuracy are different behavioral quantities. \maskbench compares reports under pressure with beliefs elicited in neutral contexts, and \liarsbench includes factually correct lies as well as incorrect honest reports \citep{ren2025mask,kretschmar2025liars}. Second, detectors often depend on the setting that produced a lie. Linear probes can achieve very high in-distribution AUROC \citep{goldowskydill2025strategic}, yet performance varies across deception types, layers, and training directions \citep{natarajan2026one,moustafa2026beyond,luikham2026asymmetries}. These findings leave a basic question unresolved: when the same model gives false answers to the same class of factual questions, do standard probes distinguish belief-contradicting reports from epistemic errors?
+
+The usual lie-versus-honest-correct comparison cannot answer this question. Its classes differ in at least three ways: reporting context, factual correctness, and the proposed belief--report mismatch. A classifier can succeed by reading the pressure prompt or by detecting that the generated answer is false. Hallucination research raises the complementary concern. Sampling uncertainty can reveal unstable recall \citep{kuhn2023semantic}, while hidden states may encode recall or association strength more strongly than truth \citep{cheang2025recall}. A convincing test must therefore compare false outputs against false outputs and control the pressure context.
+
+We conduct such a test with a matched panel of 
+\qwenmodel answers to \triviaqa questions. As shown in \figref{fig:protocol}, we first sample five neutral answers and assign each question to a \stablecorrect, \stablewrong, or unstable stratum. We then obtain deterministic neutral and pressure reports on the same evaluation questions. We call a false pressure report an \oplie only when the neutral samples establish a stable correct answer. This label is behavioral: it does not claim consciousness, phenomenological belief, or human-like intent.
+
+Our pressure manipulation has high yield. Of 261 stable-correct questions, 212 become false under pressure (81.2\%, Wilson 95\% CI: 76.0--85.5\%). Operational lies account for 31.9\% of the 664 false reports in the two-condition panel. A conventional response-token lie probe appears nearly perfect against neutral unstable errors (AUROC 0.985), but the corresponding prompt-only probe is perfect (1.000). In the primary same-pressure false-vs.-false contrast, response-probe AUROC collapses to 0.478 (95\% CI: 0.414--0.538). It still reaches 0.975 against pressured correct reports, closely mirrored by a correctness probe at 0.951. The simplest reading is that prompt regime and output correctness explain more of the apparent success than the operational mismatch that defines lying.
+
+Our contributions are:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item We propose a matched behavioral taxonomy that separates unstable epistemic errors, stable wrong associations, operational lies, and pressure cases with unresolved mechanism.
+    \item We measure mechanism yield and composition from 3,900 real generations on one open-weight model, including confidence intervals and stability-threshold sensitivity.
+    \item We conduct a prompt-matched, false-vs.-false stress test of a residual-stream lie probe and compare it with prompt-only, correctness-probe, and sampling-entropy controls.
+    \item We show quantitatively that near-perfect unconstrained AUROC can fall to chance after controlling prompt context and factual falsity, providing a concrete evaluation requirement for future deception monitors.
+\end{itemize}
+
+\input{figures/protocol}
+
+The rest of the paper is organized as follows. \Secref{sec:related} relates our design to behavioral honesty benchmarks, activation probes, and uncertainty detection. \Secref{sec:method} defines the matched panel and statistical tests. \Secref{sec:results} reports behavioral yield, mechanism shares, detector controls, and sensitivity analyses. \Secref{sec:discussion} discusses interpretation, limitations, and monitoring implications, and \secref{sec:conclusion} concludes.

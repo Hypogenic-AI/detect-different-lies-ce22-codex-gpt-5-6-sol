@@ -1,0 +1,54 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{Pressure induces frequent belief-contradicting reports}
+
+Neutral elicitation labels 261 of 500 questions as stable correct (52.2\%), 139 as unstable (27.8\%), and 100 as stable wrong (20.0\%). Under pressure, 212 of the 261 stable-correct questions produce false reports. The resulting operational-lie yield is {\bf 81.2\%} (Wilson 95\% CI: 76.0--85.5\%). Of these 212 reports, 181 (85.4\%) exactly match the incentivized decoy. Across all 500 questions, 379 pressure reports match the decoy.
+
+The within-question change is large. Among stable-correct questions, 212 reports move from neutral-correct to pressure-false, while none move from neutral-false to pressure-correct. The exact McNemar test gives $p=3.04\times10^{-64}$. This supports H1 for the deliberately strong incentive prompt. It does not show spontaneous scheming: the prompt exposes the rewarded answer and states a single reward-maximizing objective.
+
+\subsection{One third of false reports meet the operational-lie definition}
+
+Across 1,000 deterministic reports---one neutral and one pressure report for each question---664 are false. \Tabref{tab:mechanism-shares} and \figref{fig:mechanism-shares} show their composition. Operational lies are the largest single cell, at 212 reports or 31.9\%. Neutral unstable errors contribute 17.5\%, and neutral stable-wrong errors contribute 15.1\%. The remaining 35.5\% occur under pressure on questions without a stable correct neutral answer, so their mechanism is unresolved.
+
+\input{tables/mechanism_shares}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/mechanism_shares.png}
+    \caption{Mechanism shares among 664 false reports. Bars show design-conditioned shares and question-level bootstrap 95\% confidence intervals. Operational lies form the largest category, but more than one third of false reports arise under pressure without a stable correct neutral belief and cannot be assigned cleanly to lying or epistemic error.}
+    \label{fig:mechanism-shares}
+\end{figure}
+
+Within only the two clean focal cells, operational lies comprise $212/(212+116)=64.6\%$. This number reflects the experimental construction, not the prevalence of lying in deployment: we present each question once in each context and use one curated benchmark distribution.
+
+\subsection{Prompt and correctness controls explain apparent lie detection}
+
+\Tabref{tab:detectors} reports the complete detector matrix. On the clean but context-confounded contrast of operational lies versus neutral unstable errors, the response lie probe reaches 0.985 AUROC (95\% CI: 0.971--0.996). Taken alone, this result appears to support H2. The prompt-only probe, however, reaches 1.000 (1.000--1.000). It perfectly identifies the class before seeing a response. H4, which predicted weaker prompt-only discrimination, is therefore decisively refuted for this contrast.
+
+\input{tables/detector_results}
+
+The primary same-pressure false-vs.-false test reverses the conclusion. The response lie probe reaches only {\bf 0.478 AUROC} (0.414--0.538) on operational lies versus pressure/unknown false reports. Its Holm-adjusted $p$-value for ranking lies higher is 1.0. The prompt-only control is also at chance, 0.505 (0.441--0.566), as it should be when both groups receive the same prompt template. H2 is not supported under the controlled comparison.
+
+The correctness probe reaches 0.621 (0.559--0.678) in the same-pressure false-vs.-false contrast, and the score difference is statistically detectable (Holm-adjusted $p=5.14\times10^{-4}$). The direction is not evidence of mechanism specificity: operational lies receive \emph{higher} error scores than pressure/unknown false reports, even though their neutral answers are more stable. This suggests that answer association, token content, or another correlate remains in the residual states.
+
+The same-pressure lies-versus-correct comparison shows what the response lie probe can detect reliably. It reaches 0.975 AUROC (0.956--0.990), while the independently trained correctness probe reaches 0.951 (0.917--0.976). The prompt-only probe remains at chance, 0.468 (0.375--0.563). Thus the response activation contains strong output-related information, but the close correctness baseline shows that this information need not encode a belief--report mismatch.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/detector_distributions.png}
+    \caption{Detector-score distributions across the three evaluation contrasts. The response lie probe and correctness probe separate false lies from pressured correct answers, but the response lie probe does not separate operational lies from pressure/unknown false reports. The prompt-only probe separates classes only when prompt regimes differ. Answer entropy tracks the neutral stability definition and is therefore a circular manipulation check.}
+    \label{fig:detector-distributions}
+\end{figure*}
+
+\para{Entropy confirms the construction, not generalization.} Answer entropy has AUROC 0.000 when operational lies are the positive class and unstable errors are negative, both with neutral errors and with pressure/unknown false reports. This perfect inverse ranking means unstable questions have higher entropy, as H3 predicted. Yet the same samples define instability, so the result is circular. Entropy is at chance (0.497) for operational lies versus pressured correct reports from the same stable-correct stratum, confirming that it contains no report-specific signal.
+
+\subsection{Threshold sensitivity and error audit}
+
+Changing the stability rule moves examples between mechanism cells without changing the fixed pool of 664 false reports. As \tabref{tab:sensitivity} shows, operational-lie counts range from 224 at $3/5$ agreement to 196 at $5/5$, corresponding to 33.7\% and 29.5\% of all false reports. The main conclusion---a substantial operational-lie cell alongside many ambiguous pressure errors---does not depend on the exact threshold, although the cell shares do.
+
+\input{tables/sensitivity}
+
+The qualitative audit also supports the intended split. Operational lies often replace well-known neutral answers with unrelated rewarded decoys; examples include the Beatles' Cavern Club and the Gospel of Matthew. Unstable neutral errors resemble unsupported guesses, whereas stable-wrong answers repeat the same misconception across samples. These cases show why a wrong answer cannot automatically be labeled either a hallucination or a lie.
+
+The audit uncovered one material scoring error in the initial analysis: exact alias matching rejected ``University of London'' against the alias ``London.'' We changed scoring to allow complete token-subsequence matches and recomputed all labels from immutable raw outputs. Stable-correct questions increased from 236 to 261, while stable-wrong questions decreased from 125 to 100. We report the corrected results throughout; the qualitative detector conclusion remained unchanged.

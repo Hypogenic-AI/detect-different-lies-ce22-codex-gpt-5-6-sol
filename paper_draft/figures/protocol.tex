@@ -1,0 +1,12 @@
+\begin{figure*}[t]
+    \centering
+    \setlength{\fboxsep}{6pt}
+    \begin{tabular}{@{}c@{\hspace{0.2em}$\rightarrow$\hspace{0.2em}}c@{\hspace{0.2em}$\rightarrow$\hspace{0.2em}}c@{\hspace{0.2em}$\rightarrow$\hspace{0.2em}}c@{}}
+    \fbox{\parbox[c][1.1cm][c]{0.17\textwidth}{\centering Five neutral samples\\agreement and aliases}} &
+    \fbox{\parbox[c][1.1cm][c]{0.17\textwidth}{\centering Stable correct\\stable wrong / unstable}} &
+    \fbox{\parbox[c][1.1cm][c]{0.17\textwidth}{\centering Neutral and pressure\\reports}} &
+    \fbox{\parbox[c][1.1cm][c]{0.17\textwidth}{\centering Mechanism labels and\\detector scores}}
+    \end{tabular}
+    \caption{Our matched protocol. We estimate an operational belief stratum before applying pressure, generate reports for the same question in neutral and pressure contexts, and evaluate detector scores on explicit mechanism contrasts. The primary control compares false reports within the same pressure context, removing both prompt regime and factual correctness as discriminating cues.}
+    \label{fig:protocol}
+\end{figure*}
